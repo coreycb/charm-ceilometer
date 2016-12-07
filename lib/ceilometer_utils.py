@@ -34,6 +34,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
     get_os_codename_install_source,
     configure_installation_source,
+    os_release,
     pause_unit,
     resume_unit,
     make_assess_status_func,
@@ -101,6 +102,8 @@ REQUIRED_INTERFACES = {
 
 CEILOMETER_ROLE = "ResellerAdmin"
 SVC = 'ceilometer'
+WSGI_CEILOMETER_API_CONF = '/etc/apache2/sites-enabled/wsgi-ceilometer-api.conf'
+PACKAGE_CEILOMETER_API_CONF = '/etc/apache2/sites-enabled/ceilometer-api.conf'
 
 CONFIG_FILES = OrderedDict([
     (CEILOMETER_CONF, {
@@ -172,6 +175,11 @@ def register_configs():
     else:
         configs.register(HTTPS_APACHE_CONF,
                          CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
+
+    if run_in_apache():
+        configs.register(WSGI_CEILOMETER_API_CONF, [CeilometerContext(),
+                                                    HAProxyContext()])
+
     return configs
 
 
@@ -193,6 +201,15 @@ def restart_map():
                 svcs.append(svc)
         if svcs:
             _map[f] = svcs
+
+    if run_in_apache():
+        for cfile in _map:
+            svcs = _map[cfile]
+            if 'ceilometer-api' in svcs:
+                svcs.remove('ceilometer-api')
+                if 'apache2' not in svcs:
+                    svcs.append('apache2')
+        _map['WSGI_CEILOMETER_API_CONF'] = ['apache2']
 
     return _map
 
@@ -250,6 +267,14 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+    if run_in_apache():
+        # NOTE: ensure that packaging provided
+        #       apache configuration is disabled
+        #       as it will conflict with the charm
+        #       provided version
+        if os.path.exists(PACKAGE_CEILOMETER_API_CONF):
+            subprocess.check_call(['a2dissite', 'ceilometer-api'])
 
 
 def ceilometer_release_services():
@@ -379,3 +404,11 @@ def reload_systemd():
     """
     if init_is_systemd():
         subprocess.check_call(['systemctl', 'daemon-reload'])
+
+
+def run_in_apache():
+    return os_release('ceilometer-common') >= 'ocata'
+
+
+def ceilometer_api_service():
+    return {True: 'apache2', False: 'ceilometer-api'}[run_in_apache()]

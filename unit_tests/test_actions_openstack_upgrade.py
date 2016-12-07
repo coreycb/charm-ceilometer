@@ -30,7 +30,8 @@ with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
                             lambda *args, **kwargs: f(*args, **kwargs))
     with patch('ceilometer_utils.register_configs') as register_configs:
         with patch('ceilometer_utils.ceilometer_release_services'):
-            import openstack_upgrade
+            with patch('ceilometer_utils.run_in_apache'):
+                import openstack_upgrade
 
 from test_utils import (
     CharmTestCase

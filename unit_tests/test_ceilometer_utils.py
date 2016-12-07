@@ -34,6 +34,7 @@ TO_PATCH = [
     'os_application_version_set',
     'init_is_systemd',
     'os',
+    'os_release',
 ]
 
 
