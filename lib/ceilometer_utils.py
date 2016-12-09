@@ -102,7 +102,7 @@ REQUIRED_INTERFACES = {
 
 CEILOMETER_ROLE = "ResellerAdmin"
 SVC = 'ceilometer'
-WSGI_CEILOMETER_API_CONF = '/etc/apache2/sites-enabled/wsgi-ceilometer-api.conf'
+WSGI_CEILOMETER_API_CONF = '/etc/apache2/sites-enabled/wsgi-openstack-api.conf'
 PACKAGE_CEILOMETER_API_CONF = '/etc/apache2/sites-enabled/ceilometer-api.conf'
 
 CONFIG_FILES = OrderedDict([
@@ -177,8 +177,11 @@ def register_configs():
                          CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
 
     if run_in_apache():
-        configs.register(WSGI_CEILOMETER_API_CONF, [CeilometerContext(),
-                                                    HAProxyContext()])
+        configs.register(WSGI_CEILOMETER_API_CONF,
+                [context.WSGIWorkerConfigContext(
+                    name="ceilometer", script="/usr/share/ceilometer/app.wsgi"),
+                 CeilometerContext(),
+                 HAProxyContext()])
 
     return configs
 
